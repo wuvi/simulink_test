@@ -74,7 +74,7 @@ while true
             fprintf('[ 初始化仿真参数 ]\n');
             fprintf('----------------------------------\n');
             try
-                init_simulation;
+                init_simulation();
                 fprintf('✓ 参数初始化成功!\n');
             catch ME
                 fprintf('✗ 初始化失败: %s\n', ME.message);
@@ -203,7 +203,7 @@ while true
                 try
                     % 步骤1: 初始化
                     fprintf('\n>>> 步骤1: 初始化参数\n');
-                    init_simulation;
+                    init_simulation();
                     pause(1);
                     
                     % 步骤2: 运行仿真
@@ -226,6 +226,8 @@ while true
                     fprintf('\n✓ 快速演示完成!\n');
                 catch ME
                     fprintf('✗ 演示过程出错: %s\n', ME.message);
+                    fprintf('错误详情:\n');
+                    fprintf('  %s\n', ME.getReport());
                 end
             end
             fprintf('\n');

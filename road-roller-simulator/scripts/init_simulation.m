@@ -1,13 +1,25 @@
-% 压路机仿真系统初始化脚本
-% 该脚本设置所有仿真参数和初始条件
+function [params, initial] = init_simulation()
+% 压路机仿真系统初始化函数
+% 该函数设置所有仿真参数和初始条件
+%
+% 输出:
+%   params  - 仿真参数结构体（可选）
+%   initial - 初始条件结构体（可选）
+%
+% 使用方法:
+%   init_simulation;                % 直接初始化到工作空间
+%   params = init_simulation();     % 返回参数
+%   [params, initial] = init_simulation(); % 返回参数和初始条件
 %
 % 作者: AI Assistant
 % 日期: 2025-10-24
 % 版本: 1.0
 
-clear all;
-close all;
-clc;
+if nargout == 0
+    clear all;
+    close all;
+    clc;
+end
 
 fprintf('====================================\n');
 fprintf('  压路机虚拟仿真系统初始化\n');
@@ -216,10 +228,10 @@ fprintf('  - visualize_results()  : 可视化结果\n');
 fprintf('  - analyze_performance(): 分析压路机性能\n');
 fprintf('====================================\n');
 
-%% 17. 返回参数结构
-if nargout > 0
-    varargout{1} = params;
+%% 17. 保存参数到工作空间或返回
+if nargout == 0
+    % 如果没有输出参数，保存到base工作空间
+    assignin('base', 'params', params);
+    assignin('base', 'initial', initial);
 end
-if nargout > 1
-    varargout{2} = initial;
-end
+% 如果有输出参数，直接返回（函数自动返回）

@@ -19,7 +19,7 @@ fprintf('========================================\n\n');
 %% 1. 初始化系统
 fprintf('>> 步骤 1: 初始化仿真参数\n');
 cd ..
-init_simulation;
+init_simulation();
 cd examples
 
 fprintf('   ✓ 参数加载完成\n\n');

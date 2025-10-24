@@ -19,7 +19,7 @@ fprintf('========================================\n\n');
 %% 1. 初始化
 fprintf('>> 初始化系统...\n');
 cd ..
-init_simulation;
+init_simulation();
 cd examples
 fprintf('   ✓ 完成\n\n');
 
