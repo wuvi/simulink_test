@@ -11,12 +11,25 @@ function RoadRollerSimulation()
         error('此脚本需要Simulink许可证');
     end
     
+    % 显示MATLAB版本信息
+    fprintf('正在创建Simulink模型...\n');
+    fprintf('MATLAB版本: %s\n', version);
+    
     % 模型名称
     modelName = 'RoadRollerModel';
     
-    % 如果模型已存在，先关闭
+    % 如果模型已存在，先关闭并删除
     if bdIsLoaded(modelName)
+        fprintf('关闭已存在的模型...\n');
         close_system(modelName, 0);
+    end
+    
+    % 如果模型文件已存在，删除它
+    if exist([modelName '.slx'], 'file')
+        delete([modelName '.slx']);
+    end
+    if exist([modelName '.mdl'], 'file')
+        delete([modelName '.mdl']);
     end
     
     % 创建新的Simulink模型
@@ -149,8 +162,10 @@ function RoadRollerSimulation()
     % 创建压实度计算子系统
     add_block('simulink/Sources/In1', [modelName '/CompactionCalculator/VibForce_In']);
     add_block('simulink/Sources/In1', [modelName '/CompactionCalculator/Velocity_In']);
-    add_block('simulink/Math Operations/Math Function', [modelName '/CompactionCalculator/AbsVibForce'], ...
-        'Operator', 'abs');
+    
+    % 使用Abs模块代替Math Function，更兼容
+    add_block('simulink/Math Operations/Abs', [modelName '/CompactionCalculator/AbsVibForce']);
+    
     add_block('simulink/Math Operations/Product', [modelName '/CompactionCalculator/CompactionRate']);
     add_block('simulink/Continuous/Integrator', [modelName '/CompactionCalculator/TotalCompaction']);
     add_block('simulink/Math Operations/Gain', [modelName '/CompactionCalculator/ScaleFactor'], ...
@@ -224,11 +239,20 @@ function RoadRollerSimulation()
     add_line(modelName, 'CompactionCalculator/1', 'StateScope/4', 'autorouting', 'on');
     
     % 保存模型
-    save_system(modelName);
+    try
+        save_system(modelName);
+        fprintf('\n模型已成功保存!\n');
+    catch ME
+        warning('模型保存失败: %s', ME.message);
+    end
     
+    fprintf('\n====================================\n');
     fprintf('压路机Simulink模型创建完成！\n');
-    fprintf('模型名称: %s\n', modelName);
-    fprintf('已保存到当前目录\n\n');
+    fprintf('====================================\n\n');
+    fprintf('模型信息:\n');
+    fprintf('  模型名称: %s\n', modelName);
+    fprintf('  保存位置: %s\n', pwd);
+    fprintf('\n');
     fprintf('模型包含以下主要组件:\n');
     fprintf('  1. 驾驶员控制输入 (油门、制动、振动开关)\n');
     fprintf('  2. 发动机模型 (150kW最大功率)\n');
@@ -238,9 +262,12 @@ function RoadRollerSimulation()
     fprintf('  6. 压实度计算\n');
     fprintf('  7. 实时显示和示波器\n\n');
     fprintf('使用说明:\n');
+    fprintf('  - 在Simulink中打开模型: open_system(''%s'')\n', modelName);
     fprintf('  - 点击"运行"按钮开始仿真\n');
     fprintf('  - 仿真时间: 100秒\n');
     fprintf('  - 可以修改Throttle和Brake的值来控制压路机\n');
     fprintf('  - VibrationSwitch在10秒时自动开启振动\n');
+    fprintf('\n或使用run_simulation()函数运行仿真\n');
+    fprintf('====================================\n');
     
 end

@@ -30,6 +30,7 @@ function [simOut, results] = run_simulation(varargin)
     addParameter(p, 'throttle', 0.5, @(x) isnumeric(x) && x>=0 && x<=1);
     addParameter(p, 'brake', 0, @(x) isnumeric(x) && x>=0 && x<=1);
     addParameter(p, 'vibration', 10, @isnumeric);
+    addParameter(p, 'use_math_model', true, @islogical);  % 默认使用数学模型
     
     parse(p, varargin{:});
     opts = p.Results;
@@ -56,56 +57,102 @@ function [simOut, results] = run_simulation(varargin)
     fprintf('  实时可视化: %s\n', char(string(opts.visualize)));
     fprintf('\n');
     
-    %% 检查Simulink模型是否存在
-    modelName = 'RoadRollerModel';
-    
-    if ~bdIsLoaded(modelName)
-        if exist([modelName '.slx'], 'file') || exist([modelName '.mdl'], 'file')
-            fprintf('正在加载Simulink模型: %s\n', modelName);
-            load_system(modelName);
-        else
-            fprintf('未找到Simulink模型文件，正在创建...\n');
-            cd ../models;
-            RoadRollerSimulation;
-            cd ../scripts;
+    %% 选择仿真方法
+    if opts.use_math_model
+        %% 使用数学模型（推荐，不需要Simulink图形界面）
+        fprintf('使用数学模型进行仿真...\n');
+        
+        % 确保数学模型存在
+        if ~exist('RoadRollerMathModel', 'file')
+            fprintf('正在创建数学模型...\n');
+            create_simple_model();
         end
+        
+        fprintf('正在运行仿真...\n');
+        tic;
+        
+        try
+            % 调用数学模型
+            [t, y, results] = RoadRollerMathModel(opts.duration, opts.throttle, ...
+                                                   opts.brake, opts.vibration);
+            
+            elapsed_time = toc;
+            results.metrics.simulation_time = elapsed_time;
+            
+            % 创建兼容的simOut结构
+            simOut = struct();
+            simOut.tout = t;
+            simOut.yout = y;
+            
+            fprintf('仿真完成! 用时: %.2f 秒\n', elapsed_time);
+            
+        catch ME
+            fprintf('仿真出错: %s\n', ME.message);
+            fprintf('提示: 如果数学模型不存在，请运行 create_simple_model()\n');
+            rethrow(ME);
+        end
+        
     else
-        fprintf('使用已加载的模型: %s\n', modelName);
-    end
-    
-    %% 更新模型参数
-    fprintf('正在配置模型参数...\n');
-    
-    % 设置仿真时间
-    set_param(modelName, 'StopTime', num2str(opts.duration));
-    
-    % 更新常量模块
-    set_param([modelName '/Throttle'], 'Value', num2str(opts.throttle));
-    set_param([modelName '/Brake'], 'Value', num2str(opts.brake));
-    set_param([modelName '/VibrationSwitch'], 'Time', num2str(opts.vibration));
-    
-    %% 运行仿真
-    fprintf('正在运行仿真...\n');
-    tic;
-    
-    try
-        % 运行仿真
-        simOut = sim(modelName, 'ReturnWorkspaceOutputs', 'on');
+        %% 使用Simulink模型
+        fprintf('使用Simulink模型进行仿真...\n');
+        modelName = 'RoadRollerModel';
         
-        elapsed_time = toc;
-        fprintf('仿真完成! 用时: %.2f 秒\n', elapsed_time);
+        if ~bdIsLoaded(modelName)
+            if exist([modelName '.slx'], 'file') || exist([modelName '.mdl'], 'file')
+                fprintf('正在加载Simulink模型: %s\n', modelName);
+                load_system(modelName);
+            else
+                fprintf('未找到Simulink模型文件，正在创建...\n');
+                current_dir = pwd;
+                cd(fullfile(fileparts(mfilename('fullpath')), '..', 'models'));
+                RoadRollerSimulation;
+                cd(current_dir);
+            end
+        else
+            fprintf('使用已加载的模型: %s\n', modelName);
+        end
         
-    catch ME
-        fprintf('仿真出错: %s\n', ME.message);
-        rethrow(ME);
+        %% 更新模型参数
+        fprintf('正在配置模型参数...\n');
+        
+        % 设置仿真时间
+        set_param(modelName, 'StopTime', num2str(opts.duration));
+        
+        % 更新常量模块
+        set_param([modelName '/Throttle'], 'Value', num2str(opts.throttle));
+        set_param([modelName '/Brake'], 'Value', num2str(opts.brake));
+        set_param([modelName '/VibrationSwitch'], 'Time', num2str(opts.vibration));
+        
+        %% 运行仿真
+        fprintf('正在运行仿真...\n');
+        tic;
+        
+        try
+            % 运行仿真
+            simOut = sim(modelName, 'ReturnWorkspaceOutputs', 'on');
+            
+            elapsed_time = toc;
+            fprintf('仿真完成! 用时: %.2f 秒\n', elapsed_time);
+            
+        catch ME
+            fprintf('仿真出错: %s\n', ME.message);
+            rethrow(ME);
+        end
     end
     
     %% 提取和处理结果
     fprintf('正在处理仿真结果...\n');
     
-    % 提取时间序列数据
-    try
-        results.time = simOut.tout;
+    % 如果使用数学模型，结果已经准备好了
+    if opts.use_math_model && exist('results', 'var')
+        % 数学模型已经返回了results，不需要额外处理
+        fprintf('数学模型结果已准备就绪\n');
+        
+    else
+        % 提取Simulink仿真结果
+        % 提取时间序列数据
+        try
+            results.time = simOut.tout;
         
         % 从仿真输出中提取数据
         if isfield(simOut, 'yout')
@@ -154,30 +201,33 @@ function [simOut, results] = run_simulation(varargin)
             end
         end
         
-    catch ME
-        warning('数据提取部分失败: %s', ME.message);
-        % 创建基本的结果结构
-        results.time = simOut.tout;
-        results.velocity = zeros(size(results.time));
-        results.position = zeros(size(results.time));
-        results.vibration_force = zeros(size(results.time));
-        results.compaction = zeros(size(results.time));
-    end
+        catch ME
+            warning('数据提取部分失败: %s', ME.message);
+            % 创建基本的结果结构
+            results.time = simOut.tout;
+            results.velocity = zeros(size(results.time));
+            results.position = zeros(size(results.time));
+            results.vibration_force = zeros(size(results.time));
+            results.compaction = zeros(size(results.time));
+        end
+    end  % 结束 if opts.use_math_model
     
-    %% 计算性能指标
-    fprintf('正在计算性能指标...\n');
-    
-    results.metrics.max_velocity = max(abs(results.velocity));
-    results.metrics.avg_velocity = mean(abs(results.velocity));
-    results.metrics.total_distance = max(results.position) - min(results.position);
-    results.metrics.final_compaction = results.compaction(end);
-    results.metrics.simulation_time = elapsed_time;
-    
-    if max(abs(results.vibration_force)) > 0
-        results.metrics.avg_vibration = mean(abs(results.vibration_force(results.vibration_force ~= 0)));
-    else
-        results.metrics.avg_vibration = 0;
-    end
+    %% 计算性能指标（如果还没有）
+    if ~isfield(results, 'metrics') || ~isfield(results.metrics, 'max_velocity')
+        fprintf('正在计算性能指标...\n');
+        
+        results.metrics.max_velocity = max(abs(results.velocity));
+        results.metrics.avg_velocity = mean(abs(results.velocity));
+        results.metrics.total_distance = max(results.position) - min(results.position);
+        results.metrics.final_compaction = results.compaction(end);
+        results.metrics.simulation_time = elapsed_time;
+        
+        if max(abs(results.vibration_force)) > 0
+            results.metrics.avg_vibration = mean(abs(results.vibration_force(results.vibration_force ~= 0)));
+        else
+            results.metrics.avg_vibration = 0;
+        end
+    end  % 结束 if ~isfield(results, 'metrics')
     
     %% 打印结果摘要
     fprintf('\n====================================\n');
