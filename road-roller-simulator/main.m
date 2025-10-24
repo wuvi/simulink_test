@@ -40,14 +40,28 @@ fprintf('║                                                            ║\n');
 fprintf('╚════════════════════════════════════════════════════════════╝\n');
 fprintf('\n');
 
-%% 添加路径
+%% 设置工作目录和路径
 fprintf('正在配置系统环境...\n');
-addpath('models');
-addpath('scripts');
-addpath('utils');
-addpath('data');
 
-fprintf('✓ 路径配置完成\n\n');
+% 获取当前脚本所在目录
+script_path = fileparts(mfilename('fullpath'));
+
+% 如果当前目录不是脚本所在目录，切换过去
+if ~strcmp(pwd, script_path)
+    fprintf('  切换工作目录到: %s\n', script_path);
+    cd(script_path);
+end
+
+% 添加子目录到路径
+addpath(fullfile(script_path, 'models'));
+addpath(fullfile(script_path, 'scripts'));
+addpath(fullfile(script_path, 'utils'));
+addpath(fullfile(script_path, 'data'));
+addpath(fullfile(script_path, 'examples'));
+
+fprintf('✓ 路径配置完成\n');
+fprintf('  当前目录: %s\n', pwd);
+fprintf('\n');
 
 %% 显示菜单
 while true
@@ -87,11 +101,13 @@ while true
             fprintf('[ 创建Simulink模型 ]\n');
             fprintf('----------------------------------\n');
             try
-                cd models;
+                current_dir = pwd;
+                cd(fullfile(script_path, 'models'));
                 RoadRollerSimulation;
-                cd ..;
+                cd(current_dir);
                 fprintf('✓ Simulink模型创建成功!\n');
             catch ME
+                cd(current_dir);  % 确保返回原目录
                 fprintf('✗ 模型创建失败: %s\n', ME.message);
                 if contains(ME.message, 'Simulink')
                     fprintf('\n提示: 此功能需要MATLAB Simulink工具箱\n');
