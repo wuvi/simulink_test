@@ -1,0 +1,61 @@
+# MATLAB files
+*.asv
+*.mex*
+*.slxc
+*.autosave
+
+# Simulink files
+slprj/
+*.slxc
+
+# Data files
+data/*.mat
+!data/.gitkeep
+
+# Generated files
+*.log
+*.txt
+*.csv
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+~*
+*.tmp
+*.bak
+
+# Build files
+*.o
+*.obj
+*.exe
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-*
+
+# Documentation build
+docs/_build/
+docs/.doctrees/
+
+# Python (if used for post-processing)
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+*.egg-info/
+
+# Images (except sample ones)
+images/*.png
+images/*.jpg
+!images/screenshots/.gitkeep
+
+# Reports
+reports/*.pdf
+reports/*.docx
